@@ -19,14 +19,14 @@ function AppRoutes() {
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState(null);
 
-  const handleInit = () => {
+  const handleInit = (uid) => {
     setDbError(null);
     const timeoutPromise = new Promise((_, reject) => 
       setTimeout(() => reject(new Error("Koneksi ke Firebase Cloud Firestore terputus atau timeout (melebihi 6 detik). Silakan periksa koneksi internet Anda, pastikan aturan (Rules) Firestore Anda diset ke 'true', dan reload halaman.")), 6000)
     );
 
     Promise.race([
-      initDefaults(),
+      initDefaults(uid),
       timeoutPromise
     ])
       .then(() => setDbReady(true))
@@ -38,7 +38,7 @@ function AppRoutes() {
 
   useEffect(() => {
     if (user) {
-      handleInit();
+      handleInit(user.uid);
     } else {
       setDbReady(false);
       setDbError(null);
