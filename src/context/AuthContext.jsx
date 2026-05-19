@@ -11,22 +11,29 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Validate whitelist
-        const whitelist = await getSetting('whitelistEmails');
-        const demoMode = await getSetting('demoMode');
-        
-        if (demoMode || !whitelist || whitelist.length === 0 || whitelist.includes(firebaseUser.email)) {
-          setUser({
-            email: firebaseUser.email,
-            name: firebaseUser.displayName,
-            picture: firebaseUser.photoURL,
-            uid: firebaseUser.uid
-          });
-        } else {
-          // Deny access
+        try {
+          // Validate whitelist
+          const whitelist = await getSetting('whitelistEmails');
+          const demoMode = await getSetting('demoMode');
+          
+          if (demoMode || !whitelist || whitelist.length === 0 || whitelist.includes(firebaseUser.email)) {
+            setUser({
+              email: firebaseUser.email,
+              name: firebaseUser.displayName,
+              picture: firebaseUser.photoURL,
+              uid: firebaseUser.uid
+            });
+          } else {
+            // Deny access
+            await firebaseSignOut(auth);
+            setUser(null);
+            alert('Akses Ditolak. Email Anda tidak terdaftar sebagai pengelola.');
+          }
+        } catch (error) {
+          console.error("Auth initialization error:", error);
           await firebaseSignOut(auth);
           setUser(null);
-          alert('Akses Ditolak. Email Anda tidak terdaftar sebagai pengelola.');
+          alert('Gagal mengakses database: ' + error.message + '\n\nPastikan aturan Firestore (Firestore Rules) di Firebase Console Anda sudah diset untuk mengizinkan akses. Contoh rule dasar: allow read, write: if request.auth != null;');
         }
       } else {
         setUser(null);
