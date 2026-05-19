@@ -68,7 +68,7 @@ function AppRoutes() {
           {dbError}
         </p>
         <button 
-          onClick={handleInit}
+          onClick={() => user && handleInit(user.uid)}
           style={{
             background: '#ff4d4f',
             color: 'white',
