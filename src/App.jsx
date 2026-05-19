@@ -16,47 +16,11 @@ import HistoryPage from './pages/HistoryPage';
 
 function AppRoutes() {
   const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="splash-screen">
-        <div className="splash-icon">🐣</div>
-        <div className="splash-title">Peternakan Puyuh</div>
-        <div className="splash-spinner" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <LoginPage />;
-  }
-
-  return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<DashboardPage />} />
-        <Route path="/input" element={<DailyInputPage />} />
-        <Route path="/stok" element={<StockPage />} />
-        <Route path="/keuangan" element={<FinancePage />} />
-        <Route path="/inventaris" element={<EquipmentPage />} />
-        <Route path="/laporan" element={<ReportsPage />} />
-        <Route path="/pengaturan" element={<SettingsPage />} />
-        <Route path="/riwayat" element={<HistoryPage />} />
-        <Route path="/lainnya" element={<MorePage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Layout>
-  );
-}
-
-export default function App() {
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState(null);
 
   const handleInit = () => {
     setDbError(null);
-    
-    // Helper timeout 6 detik
     const timeoutPromise = new Promise((_, reject) => 
       setTimeout(() => reject(new Error("Koneksi ke Firebase Cloud Firestore terputus atau timeout (melebihi 6 detik). Silakan periksa koneksi internet Anda, pastikan aturan (Rules) Firestore Anda diset ke 'true', dan reload halaman.")), 6000)
     );
@@ -73,8 +37,27 @@ export default function App() {
   };
 
   useEffect(() => {
-    handleInit();
-  }, []);
+    if (user) {
+      handleInit();
+    } else {
+      setDbReady(false);
+      setDbError(null);
+    }
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="splash-screen">
+        <div className="splash-icon">🐣</div>
+        <div className="splash-title">Peternakan Puyuh</div>
+        <div className="splash-spinner" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
 
   if (dbError) {
     return (
@@ -113,6 +96,25 @@ export default function App() {
     );
   }
 
+  return (
+    <Layout>
+      <Routes>
+        <Route path="/" element={<DashboardPage />} />
+        <Route path="/input" element={<DailyInputPage />} />
+        <Route path="/stok" element={<StockPage />} />
+        <Route path="/keuangan" element={<FinancePage />} />
+        <Route path="/inventaris" element={<EquipmentPage />} />
+        <Route path="/laporan" element={<ReportsPage />} />
+        <Route path="/pengaturan" element={<SettingsPage />} />
+        <Route path="/riwayat" element={<HistoryPage />} />
+        <Route path="/lainnya" element={<MorePage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Layout>
+  );
+}
+
+export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
