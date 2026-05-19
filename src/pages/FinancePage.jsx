@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { db, useFirestoreQuery } from '../db';
 import { collection, query, where, orderBy, getDocs, addDoc, deleteDoc, doc, limit } from 'firebase/firestore';
 import { formatRupiah, formatNumber } from '../utils/formatCurrency';
@@ -53,19 +53,19 @@ export default function FinancePage() {
   const monthStart = `${filterMonth}-01`;
   const monthEnd = `${filterMonth}-31`;
 
-  const transactionsQuery = query(
+  const transactionsQuery = useMemo(() => query(
     collection(db, 'transactions'),
     where('date', '>=', monthStart),
     where('date', '<=', monthEnd)
-  );
-  const transactions = useFirestoreQuery(transactionsQuery) || [];
-  transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+  ), [monthStart, monthEnd]);
+  const rawTransactions = useFirestoreQuery(transactionsQuery) || [];
+  const transactions = [...rawTransactions].sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  const dailyRecordsQuery = query(
+  const dailyRecordsQuery = useMemo(() => query(
     collection(db, 'dailyRecords'),
     where('date', '>=', monthStart),
     where('date', '<=', monthEnd)
-  );
+  ), [monthStart, monthEnd]);
   const monthDailyRecords = useFirestoreQuery(dailyRecordsQuery) || [];
 
   const filtered = transactions.filter(t => {

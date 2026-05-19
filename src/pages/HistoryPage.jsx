@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { db, updateStock, updateLivestock, useFirestoreQuery } from '../db';
 import { collection, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
 import { showToast } from '../components/Toast';
@@ -9,13 +9,13 @@ import { formatRupiah } from '../utils/formatCurrency';
 export default function HistoryPage() {
   const [filter, setFilter] = useState('all');
 
-  const dailyRecordsQuery = query(collection(db, 'dailyRecords'), orderBy('date', 'desc'));
+  const dailyRecordsQuery = useMemo(() => query(collection(db, 'dailyRecords'), orderBy('date', 'desc')), []);
   const dailyRecords = useFirestoreQuery(dailyRecordsQuery) || [];
 
-  const feedPurchasesQuery = query(collection(db, 'feedPurchases'), orderBy('date', 'desc'));
+  const feedPurchasesQuery = useMemo(() => query(collection(db, 'feedPurchases'), orderBy('date', 'desc')), []);
   const feedPurchases = useFirestoreQuery(feedPurchasesQuery) || [];
 
-  const transactionsQuery = query(collection(db, 'transactions'), orderBy('date', 'desc'));
+  const transactionsQuery = useMemo(() => query(collection(db, 'transactions'), orderBy('date', 'desc')), []);
   const transactions = useFirestoreQuery(transactionsQuery) || [];
 
   const handleDelete = async (id, type, data) => {

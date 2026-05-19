@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { db, getStock, getLivestock, getSetting, useFirestoreQuery } from '../db';
 import { collection, query, where, orderBy } from 'firebase/firestore';
 import { formatRupiah, formatNumber } from '../utils/formatCurrency';
@@ -32,23 +32,23 @@ export default function DashboardPage() {
   const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
   const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-31`;
 
-  const monthTransactionsQuery = query(
+  const monthTransactionsQuery = useMemo(() => query(
     collection(db, 'transactions'),
     where('date', '>=', monthStart),
     where('date', '<=', monthEnd)
-  );
+  ), [monthStart, monthEnd]);
   const monthTransactions = useFirestoreQuery(monthTransactionsQuery);
 
-  const todayQuery = query(
+  const todayQuery = useMemo(() => query(
     collection(db, 'dailyRecords'),
     where('date', '==', todayISO())
-  );
+  ), []);
   const todayRecords = useFirestoreQuery(todayQuery);
 
-  const feedPurchasesQuery = query(
+  const feedPurchasesQuery = useMemo(() => query(
     collection(db, 'feedPurchases'),
     orderBy('date', 'desc')
-  );
+  ), []);
   const feedPurchases = useFirestoreQuery(feedPurchasesQuery);
 
   // Reload stocks periodically (simple approach, or could use onSnapshot for stocks too)
