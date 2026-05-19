@@ -1,12 +1,15 @@
 import { useState } from 'react';
-import { db } from '../db';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { userCol } from '../db';
+import { query, where, getDocs } from 'firebase/firestore';
 import { exportMonthly, exportYearly, exportAllTime } from '../utils/exportExcel';
 import { showToast } from '../components/Toast';
 import { getMonthRange, getYearRange, getMonthName } from '../utils/dateUtils';
 import { FileSpreadsheet, Download, Calendar, TrendingUp, Infinity } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export default function ReportsPage() {
+  const { user } = useAuth();
+  const uid = user?.uid;
   const [exportType, setExportType] = useState('monthly');
   const [monthValue, setMonthValue] = useState(() => {
     const now = new Date();
@@ -28,12 +31,12 @@ export default function ReportsPage() {
         const { start, end } = getMonthRange(year, month);
         
         const transactionsQ = query(
-          collection(db, 'transactions'),
+          userCol(uid, 'transactions'),
           where('date', '>=', start),
           where('date', '<=', end)
         );
         const dailyRecordsQ = query(
-          collection(db, 'dailyRecords'),
+          userCol(uid, 'dailyRecords'),
           where('date', '>=', start),
           where('date', '<=', end)
         );
@@ -48,12 +51,12 @@ export default function ReportsPage() {
         const { start, end } = getYearRange(year);
 
         const transactionsQ = query(
-          collection(db, 'transactions'),
+          userCol(uid, 'transactions'),
           where('date', '>=', start),
           where('date', '<=', end)
         );
         const dailyRecordsQ = query(
-          collection(db, 'dailyRecords'),
+          userCol(uid, 'dailyRecords'),
           where('date', '>=', start),
           where('date', '<=', end)
         );
@@ -64,8 +67,8 @@ export default function ReportsPage() {
         await exportYearly(transactions, dailyRecords, year);
         showToast(`Laporan Tahunan ${year} berhasil diunduh! 📊`, 'success');
       } else {
-        const transactions = await getDocsArray(collection(db, 'transactions'));
-        const dailyRecords = await getDocsArray(collection(db, 'dailyRecords'));
+        const transactions = await getDocsArray(userCol(uid, 'transactions'));
+        const dailyRecords = await getDocsArray(userCol(uid, 'dailyRecords'));
         await exportAllTime(transactions, dailyRecords);
         showToast('Laporan Semua Waktu berhasil diunduh! 📊', 'success');
       }

@@ -1,13 +1,16 @@
-import { useState } from 'react';
-import { db, useFirestoreQuery } from '../db';
-import { collection, query, orderBy, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { useState, useMemo } from 'react';
+import { useFirestoreQuery, userCol, userDoc } from '../db';
+import { orderBy, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { showToast } from '../components/Toast';
 import Modal from '../components/Modal';
 import { Plus, Edit2, Trash2, AlertTriangle, Package, CheckCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const CATEGORIES = ['Kandang', 'Pakan & Minum', 'Kesehatan', 'Kebersihan', 'Listrik', 'Lainnya'];
 
 export default function EquipmentPage() {
+  const { user } = useAuth();
+  const uid = user?.uid;
   const [showAdd, setShowAdd] = useState(false);
   const [editItem, setEditItem] = useState(null);
 
@@ -19,7 +22,7 @@ export default function EquipmentPage() {
   const [minSpare, setMinSpare] = useState('');
   const [notes, setNotes] = useState('');
 
-  const equipmentQuery = query(collection(db, 'equipment'), orderBy('category'));
+  const equipmentQuery = useMemo(() => uid ? query(userCol(uid, 'equipment'), orderBy('category')) : null, [uid]);
   const equipment = useFirestoreQuery(equipmentQuery) || [];
 
   const resetForm = () => {
@@ -40,10 +43,10 @@ export default function EquipmentPage() {
       updatedAt: new Date().toISOString(),
     };
     if (editItem) {
-      await updateDoc(doc(db, 'equipment', editItem.id), data);
+      await updateDoc(doc(userCol(uid, 'equipment'), editItem.id), data);
       showToast('Data alat diperbarui! ✅', 'success');
     } else {
-      await addDoc(collection(db, 'equipment'), { ...data, createdAt: new Date().toISOString() });
+      await addDoc(userCol(uid, 'equipment'), { ...data, createdAt: new Date().toISOString() });
       showToast('Alat baru ditambahkan! ✅', 'success');
     }
     setShowAdd(false);
@@ -63,7 +66,7 @@ export default function EquipmentPage() {
 
   const handleDelete = async (id) => {
     if (window.confirm('Hapus data alat ini?')) {
-      await deleteDoc(doc(db, 'equipment', id));
+      await deleteDoc(doc(userCol(uid, 'equipment'), id));
       showToast('Data alat dihapus', 'info');
     }
   };

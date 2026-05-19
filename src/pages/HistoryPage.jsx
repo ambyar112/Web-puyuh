@@ -1,21 +1,24 @@
 import { useState, useMemo } from 'react';
-import { db, updateStock, updateLivestock, useFirestoreQuery } from '../db';
+import { updateStock, updateLivestock, useFirestoreQuery, userCol, userDoc } from '../db';
 import { collection, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
 import { showToast } from '../components/Toast';
 import { formatDate } from '../utils/dateUtils';
 import { Trash2 } from 'lucide-react';
 import { formatRupiah } from '../utils/formatCurrency';
+import { useAuth } from '../context/AuthContext';
 
 export default function HistoryPage() {
+  const { user } = useAuth();
+  const uid = user?.uid;
   const [filter, setFilter] = useState('all');
 
-  const dailyRecordsQuery = useMemo(() => query(collection(db, 'dailyRecords'), orderBy('date', 'desc')), []);
+  const dailyRecordsQuery = useMemo(() => uid ? query(userCol(uid, 'dailyRecords'), orderBy('date', 'desc')) : null, [uid]);
   const dailyRecords = useFirestoreQuery(dailyRecordsQuery) || [];
 
-  const feedPurchasesQuery = useMemo(() => query(collection(db, 'feedPurchases'), orderBy('date', 'desc')), []);
+  const feedPurchasesQuery = useMemo(() => uid ? query(userCol(uid, 'feedPurchases'), orderBy('date', 'desc')) : null, [uid]);
   const feedPurchases = useFirestoreQuery(feedPurchasesQuery) || [];
 
-  const transactionsQuery = useMemo(() => query(collection(db, 'transactions'), orderBy('date', 'desc')), []);
+  const transactionsQuery = useMemo(() => uid ? query(userCol(uid, 'transactions'), orderBy('date', 'desc')) : null, [uid]);
   const transactions = useFirestoreQuery(transactionsQuery) || [];
 
   const handleDelete = async (id, type, data) => {
@@ -24,32 +27,30 @@ export default function HistoryPage() {
     try {
       if (type === 'daily') {
         if (data.feedUsed > 0) {
-          await updateStock('pakan', data.feedUsed);
-          await updateStock('karungBekas', -data.feedUsed);
+          await updateStock(uid, 'pakan', data.feedUsed);
+          await updateStock(uid, 'karungBekas', -data.feedUsed);
         }
         if (data.eggCount > 0) {
           let kgEquiv = 0;
           if (data.eggUnit === 'kg') kgEquiv = data.eggCount;
           else if (data.eggUnit === 'krat') kgEquiv = data.eggCount * 10;
           else kgEquiv = data.eggCount / 200;
-          await updateStock('telur', -kgEquiv);
+          await updateStock(uid, 'telur', -kgEquiv);
         }
         const totalLoss = (data.deaths || 0) + (data.afkir || 0);
-        if (totalLoss > 0) {
-          await updateLivestock(totalLoss);
-        }
-        await deleteDoc(doc(db, 'dailyRecords', id));
+        if (totalLoss > 0) { await updateLivestock(uid, totalLoss); }
+        await deleteDoc(doc(userCol(uid, 'dailyRecords'), id));
       } else if (type === 'feed') {
-        await updateStock('pakan', -data.quantity);
-        await deleteDoc(doc(db, 'feedPurchases', id));
+        await updateStock(uid, 'pakan', -data.quantity);
+        await deleteDoc(doc(userCol(uid, 'feedPurchases'), id));
         const expense = transactions.find(t => t.date === data.date && t.category === 'Pakan' && t.totalAmount === data.totalCost);
-        if (expense) await deleteDoc(doc(db, 'transactions', expense.id));
+        if (expense) await deleteDoc(doc(userCol(uid, 'transactions'), expense.id));
       } else if (type === 'transaction') {
         if (data.category === 'Jual Telur' || data.category === 'Jual Karung' || data.category === 'Beli Pakan') {
           showToast('Transaksi ini tidak bisa dihapus dari sini. Hapus dari riwayat input aslinya.', 'error');
           return;
         }
-        await deleteDoc(doc(db, 'transactions', id));
+        await deleteDoc(doc(userCol(uid, 'transactions'), id));
       }
       showToast('Data berhasil dihapus', 'success');
     } catch (err) {

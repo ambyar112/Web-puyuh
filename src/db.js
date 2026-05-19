@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs, query, orderBy, limit, deleteDoc } from "firebase/firestore";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, deleteDoc } from "firebase/firestore";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { useState, useEffect } from 'react';
 import { onSnapshot } from 'firebase/firestore';
 
@@ -19,6 +19,12 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
+// ===== PER-USER PATH HELPERS =====
+// All data is scoped under /users/{uid}/ so each Google account has separate data
+export const userCol = (uid, name) => collection(db, 'users', uid, name);
+export const userDoc = (uid, ...path) => doc(db, 'users', uid, ...path);
+
+// ===== REAL-TIME QUERY HOOK =====
 export function useFirestoreQuery(q) {
   const [data, setData] = useState(null);
   useEffect(() => {
@@ -34,8 +40,9 @@ export function useFirestoreQuery(q) {
   return data;
 }
 
-export async function getSetting(key) {
-  const docRef = doc(db, 'settings', key);
+// ===== SETTINGS =====
+export async function getSetting(uid, key) {
+  const docRef = userDoc(uid, 'settings', key);
   const docSnap = await getDoc(docRef);
   if (docSnap.exists()) {
     return docSnap.data().value;
@@ -43,12 +50,13 @@ export async function getSetting(key) {
   return null;
 }
 
-export async function setSetting(key, value) {
-  await setDoc(doc(db, 'settings', key), { value });
+export async function setSetting(uid, key, value) {
+  await setDoc(userDoc(uid, 'settings', key), { value });
 }
 
-export async function getStock(type) {
-  const docRef = doc(db, 'stocks', type);
+// ===== STOCK =====
+export async function getStock(uid, type) {
+  const docRef = userDoc(uid, 'stocks', type);
   const docSnap = await getDoc(docRef);
   if (docSnap.exists()) {
     return { id: docSnap.id, ...docSnap.data() };
@@ -56,10 +64,10 @@ export async function getStock(type) {
   return { id: type, type, quantity: 0, unit: type === 'telur' ? 'kg' : 'karung' };
 }
 
-export async function updateStock(type, delta, unit = '') {
-  const stock = await getStock(type);
+export async function updateStock(uid, type, delta, unit = '') {
+  const stock = await getStock(uid, type);
   const newQty = Math.max(0, stock.quantity + delta);
-  await setDoc(doc(db, 'stocks', type), {
+  await setDoc(userDoc(uid, 'stocks', type), {
     type,
     quantity: newQty,
     unit: unit || stock.unit,
@@ -68,8 +76,9 @@ export async function updateStock(type, delta, unit = '') {
   return newQty;
 }
 
-export async function getLivestock() {
-  const docRef = doc(db, 'livestock', 'main');
+// ===== LIVESTOCK =====
+export async function getLivestock(uid) {
+  const docRef = userDoc(uid, 'livestock', 'main');
   const docSnap = await getDoc(docRef);
   if (docSnap.exists()) {
     return docSnap.data();
@@ -77,57 +86,55 @@ export async function getLivestock() {
   return { totalPopulation: 0 };
 }
 
-export async function updateLivestock(delta) {
-  const current = await getLivestock();
+export async function updateLivestock(uid, delta) {
+  const current = await getLivestock(uid);
   const newPop = Math.max(0, (current.totalPopulation || 0) + delta);
-  await setDoc(doc(db, 'livestock', 'main'), {
+  await setDoc(userDoc(uid, 'livestock', 'main'), {
     totalPopulation: newPop,
     dateUpdated: new Date().toISOString()
   });
   return newPop;
 }
 
-export async function initDefaults() {
-  // Try getting a setting to see if initialized
-  const farmName = await getSetting('farmName');
+// ===== INIT DEFAULTS (run on first login for a user) =====
+export async function initDefaults(uid) {
+  const farmName = await getSetting(uid, 'farmName');
   if (!farmName) {
-    await setSetting('farmName', 'Peternakan Puyuhku');
-    await setSetting('whitelistEmails', []);
-    await setSetting('hargaKarung', 2000);
-    await setSetting('hargaKarungPerKg', 50);
-    await setSetting('alarmPakanKritis', 10);
-    await setSetting('alarmPakanDarurat', 5);
-    await setSetting('demoMode', true);
+    await setSetting(uid, 'farmName', 'Peternakan Puyuhku');
+    await setSetting(uid, 'whitelistEmails', []);
+    await setSetting(uid, 'hargaKarung', 2000);
+    await setSetting(uid, 'hargaKarungPerKg', 50);
+    await setSetting(uid, 'alarmPakanKritis', 10);
+    await setSetting(uid, 'alarmPakanDarurat', 5);
+    await setSetting(uid, 'demoMode', true);
   }
 
-  const pakan = await getStock('pakan');
+  const pakan = await getStock(uid, 'pakan');
   if (pakan.quantity === 0 && !pakan.lastUpdated) {
-    await setDoc(doc(db, 'stocks', 'pakan'), { type: 'pakan', quantity: 20, unit: 'karung', lastUpdated: new Date().toISOString() });
-    await setDoc(doc(db, 'stocks', 'karungBekas'), { type: 'karungBekas', quantity: 0, unit: 'karung', lastUpdated: new Date().toISOString() });
-    await setDoc(doc(db, 'stocks', 'telur'), { type: 'telur', quantity: 0, unit: 'kg', lastUpdated: new Date().toISOString() });
+    await setDoc(userDoc(uid, 'stocks', 'pakan'), { type: 'pakan', quantity: 20, unit: 'karung', lastUpdated: new Date().toISOString() });
+    await setDoc(userDoc(uid, 'stocks', 'karungBekas'), { type: 'karungBekas', quantity: 0, unit: 'karung', lastUpdated: new Date().toISOString() });
+    await setDoc(userDoc(uid, 'stocks', 'telur'), { type: 'telur', quantity: 0, unit: 'kg', lastUpdated: new Date().toISOString() });
   }
 
-  const lv = await getLivestock();
+  const lv = await getLivestock(uid);
   if (!lv.dateUpdated) {
-    await setDoc(doc(db, 'livestock', 'main'), { totalPopulation: 1000, dateUpdated: new Date().toISOString() });
+    await setDoc(userDoc(uid, 'livestock', 'main'), { totalPopulation: 1000, dateUpdated: new Date().toISOString() });
   }
 }
 
-export async function factoryReset() {
+// ===== FACTORY RESET (only resets current user's data) =====
+export async function factoryReset(uid) {
   const collectionsToDelete = ['dailyRecords', 'transactions', 'feedPurchases', 'equipment'];
   for (const collName of collectionsToDelete) {
-    const q = query(collection(db, collName));
+    const q = query(userCol(uid, collName));
     const snap = await getDocs(q);
     for (const d of snap.docs) {
-      await deleteDoc(doc(db, collName, d.id));
+      await deleteDoc(userDoc(uid, collName, d.id));
     }
   }
 
-  // Reset stock to 0
-  await setDoc(doc(db, 'stocks', 'pakan'), { type: 'pakan', quantity: 0, unit: 'karung', lastUpdated: new Date().toISOString() });
-  await setDoc(doc(db, 'stocks', 'karungBekas'), { type: 'karungBekas', quantity: 0, unit: 'karung', lastUpdated: new Date().toISOString() });
-  await setDoc(doc(db, 'stocks', 'telur'), { type: 'telur', quantity: 0, unit: 'kg', lastUpdated: new Date().toISOString() });
-
-  // Reset livestock to 0
-  await setDoc(doc(db, 'livestock', 'main'), { totalPopulation: 0, dateUpdated: new Date().toISOString() });
+  await setDoc(userDoc(uid, 'stocks', 'pakan'), { type: 'pakan', quantity: 0, unit: 'karung', lastUpdated: new Date().toISOString() });
+  await setDoc(userDoc(uid, 'stocks', 'karungBekas'), { type: 'karungBekas', quantity: 0, unit: 'karung', lastUpdated: new Date().toISOString() });
+  await setDoc(userDoc(uid, 'stocks', 'telur'), { type: 'telur', quantity: 0, unit: 'kg', lastUpdated: new Date().toISOString() });
+  await setDoc(userDoc(uid, 'livestock', 'main'), { totalPopulation: 0, dateUpdated: new Date().toISOString() });
 }

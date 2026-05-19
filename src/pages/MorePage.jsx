@@ -43,7 +43,7 @@ export default function MorePage() {
       }
       
       try {
-          await factoryReset();
+          await factoryReset(user?.uid);
           showToast('Sistem berhasil direset ke 0', 'success');
           setTimeout(() => window.location.reload(), 1500);
         } catch (err) {

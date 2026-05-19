@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
-import { db, getStock, updateStock, getLivestock, getSetting } from '../db';
-import { collection, addDoc, doc, setDoc } from 'firebase/firestore';
+import { getStock, updateStock, getLivestock, getSetting, userCol, userDoc } from '../db';
+import { addDoc, setDoc } from 'firebase/firestore';
 import { formatRupiah, formatNumber } from '../utils/formatCurrency';
 import { formatDate, todayISO } from '../utils/dateUtils';
 import { showToast } from '../components/Toast';
 import Modal from '../components/Modal';
 import { Package, Trash2, Egg, Bird, Plus, ShoppingCart, AlertTriangle } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function StockPage() {
+  const { user } = useAuth();
+  const uid = user?.uid;
   const [searchParams] = useSearchParams();
   const [stocks, setStocks] = useState({ pakan: 0, karungBekas: 0, telur: 0 });
   const [livestock, setLivestock] = useState(0);
@@ -35,22 +38,23 @@ export default function StockPage() {
   }, [searchParams]);
 
   async function loadData() {
+    if (!uid) return;
     const [pakan, karungBekas, telur] = await Promise.all([
-      getStock('pakan'),
-      getStock('karungBekas'),
-      getStock('telur'),
+      getStock(uid, 'pakan'),
+      getStock(uid, 'karungBekas'),
+      getStock(uid, 'telur'),
     ]);
     setStocks({
       pakan: pakan?.quantity || 0,
       karungBekas: karungBekas?.quantity || 0,
       telur: telur?.quantity || 0,
     });
-    const lv = await getLivestock();
+    const lv = await getLivestock(uid);
     setLivestock(lv.totalPopulation || 0);
 
-    const kritis = await getSetting('alarmPakanKritis');
-    const darurat = await getSetting('alarmPakanDarurat');
-    const hargaKarung = await getSetting('hargaKarung');
+    const kritis = await getSetting(uid, 'alarmPakanKritis');
+    const darurat = await getSetting(uid, 'alarmPakanDarurat');
+    const hargaKarung = await getSetting(uid, 'hargaKarung');
     setSettings({ alarmKritis: kritis || 10, alarmDarurat: darurat || 5, hargaKarung: hargaKarung || 2000 });
   }
 
@@ -67,7 +71,7 @@ export default function StockPage() {
     const brand = feedBrand || 'Pakan Standar';
     const total = qty * price;
 
-    await addDoc(collection(db, 'feedPurchases'), {
+    await addDoc(userCol(uid, 'feedPurchases'), {
       date: todayISO(),
       brand: brand,
       quantity: qty,
@@ -76,9 +80,9 @@ export default function StockPage() {
       createdAt: new Date().toISOString(),
     });
     
-    await updateStock('pakan', qty);
+    await updateStock(uid, 'pakan', qty);
 
-    await addDoc(collection(db, 'transactions'), {
+    await addDoc(userCol(uid, 'transactions'), {
       date: todayISO(),
       type: 'expense',
       category: 'Pakan',
@@ -105,9 +109,9 @@ export default function StockPage() {
       return;
     }
     const total = qty * settings.hargaKarung;
-    await updateStock('karungBekas', -qty);
+    await updateStock(uid, 'karungBekas', -qty);
 
-    await addDoc(collection(db, 'transactions'), {
+    await addDoc(userCol(uid, 'transactions'), {
       date: todayISO(),
       type: 'income',
       category: 'Karung Bekas',
@@ -129,7 +133,7 @@ export default function StockPage() {
   const handleSetLivestock = async () => {
     if (!newLivestock) { showToast('Masukkan jumlah populasi', 'warning'); return; }
     
-    await setDoc(doc(db, 'livestock', 'main'), {
+    await setDoc(userDoc(uid, 'livestock', 'main'), {
       totalPopulation: parseInt(newLivestock),
       dateUpdated: new Date().toISOString()
     });
@@ -305,7 +309,7 @@ export default function StockPage() {
             <button className="btn btn-ghost" onClick={() => setShowAddEgg(false)}>Batal</button>
             <button className="btn btn-primary" onClick={async () => {
               if (!addEggQty) return;
-              await updateStock('telur', parseFloat(addEggQty));
+              await updateStock(uid, 'telur', parseFloat(addEggQty));
               showToast('Stok telur diperbarui!', 'success');
               setShowAddEgg(false); setAddEggQty(''); loadData();
             }} id="btn-confirm-add-egg">Simpan</button>

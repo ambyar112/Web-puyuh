@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { db, getSetting, setSetting, factoryReset } from '../db';
+import { getSetting, setSetting, factoryReset } from '../db';
 import { showToast } from '../components/Toast';
 import { Save, ChevronRight, Shield, Bell, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
+  const uid = user?.uid;
   const navigate = useNavigate();
   const [farmName, setFarmName] = useState('');
   const [whitelistEmails, setWhitelistEmails] = useState('');
@@ -17,16 +18,17 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    loadSettings();
-  }, []);
+    if (uid) loadSettings();
+  }, [uid]);
 
   async function loadSettings() {
+    if (!uid) return;
     const [name, emails, harga, kritis, darurat] = await Promise.all([
-      getSetting('farmName'),
-      getSetting('whitelistEmails'),
-      getSetting('hargaKarung'),
-      getSetting('alarmPakanKritis'),
-      getSetting('alarmPakanDarurat'),
+      getSetting(uid, 'farmName'),
+      getSetting(uid, 'whitelistEmails'),
+      getSetting(uid, 'hargaKarung'),
+      getSetting(uid, 'alarmPakanKritis'),
+      getSetting(uid, 'alarmPakanDarurat'),
     ]);
     setFarmName(name || 'Peternakan Puyuhku');
     setWhitelistEmails(Array.isArray(emails) ? emails.join('\n') : '');
@@ -35,19 +37,19 @@ export default function SettingsPage() {
     setAlarmDarurat(String(darurat || 5));
 
     const { getLivestock } = await import('../db');
-    const lv = await getLivestock();
+    const lv = await getLivestock(uid);
     setPopulasiAwal(String(lv?.totalPopulation || 0));
   }
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await setSetting('farmName', farmName);
+      await setSetting(uid, 'farmName', farmName);
       const emailList = whitelistEmails.split('\n').map(e => e.trim()).filter(Boolean);
-      await setSetting('whitelistEmails', emailList);
-      await setSetting('hargaKarung', parseFloat(hargaKarung) || 2000);
-      await setSetting('alarmPakanKritis', parseInt(alarmKritis) || 10);
-      await setSetting('alarmPakanDarurat', parseInt(alarmDarurat) || 5);
+      await setSetting(uid, 'whitelistEmails', emailList);
+      await setSetting(uid, 'hargaKarung', parseFloat(hargaKarung) || 2000);
+      await setSetting(uid, 'alarmPakanKritis', parseInt(alarmKritis) || 10);
+      await setSetting(uid, 'alarmPakanDarurat', parseInt(alarmDarurat) || 5);
       showToast('Pengaturan berhasil disimpan! ✅', 'success');
     } catch {
       showToast('Gagal menyimpan pengaturan', 'error');
@@ -64,7 +66,7 @@ export default function SettingsPage() {
       }
       
       try {
-          await factoryReset();
+          await factoryReset(uid);
           showToast('Sistem berhasil direset ke 0', 'success');
           setTimeout(() => window.location.reload(), 1500);
         } catch (err) {

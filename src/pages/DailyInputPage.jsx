@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { db, updateStock, updateLivestock, getStock } from '../db';
-import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { userCol, updateStock, updateLivestock, getStock } from '../db';
 import { showToast } from '../components/Toast';
 import { todayISO } from '../utils/dateUtils';
 import { Save, Egg, Package, Bird, FileText, ChevronDown } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 
 const EGG_UNITS = [
   { value: 'butir', label: '🥚 Butir', desc: 'Cocok untuk telur kecil / awal produksi' },
@@ -12,6 +13,8 @@ const EGG_UNITS = [
 ];
 
 export default function DailyInputPage() {
+  const { user } = useAuth();
+  const uid = user?.uid;
   const [date, setDate] = useState(todayISO());
   const [eggCount, setEggCount] = useState('');
   const [eggUnit, setEggUnit] = useState('kg');
@@ -32,7 +35,7 @@ export default function DailyInputPage() {
     setSaving(true);
     try {
       // Check for duplicate entry
-      const q = query(collection(db, 'dailyRecords'), where('date', '==', date));
+      const q = query(userCol(uid, 'dailyRecords'), where('date', '==', date));
       const querySnapshot = await getDocs(q);
       
       if (!querySnapshot.empty) {
@@ -48,14 +51,14 @@ export default function DailyInputPage() {
 
       // Update stocks
       if (fUsed > 0) {
-        const pakanStock = await getStock('pakan');
+        const pakanStock = await getStock(uid, 'pakan');
         if (pakanStock.quantity < fUsed) {
           showToast(`Stok pakan tidak cukup! Sisa: ${pakanStock.quantity}`, 'error');
           setSaving(false);
           return;
         }
-        await updateStock('pakan', -fUsed);
-        await updateStock('karungBekas', fUsed);
+        await updateStock(uid, 'pakan', -fUsed);
+        await updateStock(uid, 'karungBekas', fUsed);
       }
 
       if (eCount > 0) {
@@ -65,15 +68,15 @@ export default function DailyInputPage() {
         else if (eggUnit === 'krat') kgEquiv = eCount * 10;
         else kgEquiv = eCount / 200;
         
-        await updateStock('telur', kgEquiv);
+        await updateStock(uid, 'telur', kgEquiv);
       }
 
       if (dCount > 0 || aCount > 0) {
-        await updateLivestock(-(dCount + aCount));
+        await updateLivestock(uid, -(dCount + aCount));
       }
 
       // Save record
-      await addDoc(collection(db, 'dailyRecords'), {
+      await addDoc(userCol(uid, 'dailyRecords'), {
         date,
         eggCount: eCount,
         eggUnit,
