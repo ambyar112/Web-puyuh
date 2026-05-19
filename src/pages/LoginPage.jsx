@@ -10,19 +10,26 @@ export default function LoginPage() {
   const [farmName, setFarmName] = useState('Peternakan Puyuhku');
 
   useEffect(() => {
-    getSetting('farmName').then(name => {
-      if (name) setFarmName(name);
-    });
+    getSetting('farmName')
+      .then(name => {
+        if (name) setFarmName(name);
+      })
+      .catch(err => {
+        console.log("Belum bisa mengambil nama peternakan (belum login atau rules dibatasi):", err.message);
+      });
   }, []);
 
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError('');
+    // loginWithGoogle uses signInWithRedirect, so the page will redirect.
+    // If there's an error before redirect, it returns { success: false }
     const result = await loginWithGoogle();
-    if (!result.success) {
+    if (result && !result.success) {
       setError(result.message);
+      setLoading(false);
     }
-    setLoading(false);
+    // If redirect happens, loading stays true (page navigates away)
   };
 
   return (

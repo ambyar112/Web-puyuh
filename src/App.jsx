@@ -16,6 +16,34 @@ import HistoryPage from './pages/HistoryPage';
 
 function AppRoutes() {
   const { user, loading } = useAuth();
+  const [dbReady, setDbReady] = useState(false);
+  const [dbError, setDbError] = useState(null);
+
+  const handleInit = () => {
+    setDbError(null);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("Koneksi ke Firebase Cloud Firestore terputus atau timeout (melebihi 6 detik). Silakan periksa koneksi internet Anda, pastikan aturan (Rules) Firestore Anda diset ke 'true', dan reload halaman.")), 6000)
+    );
+
+    Promise.race([
+      initDefaults(),
+      timeoutPromise
+    ])
+      .then(() => setDbReady(true))
+      .catch((err) => {
+        console.error("Database initialization failed:", err);
+        setDbError(err.message || String(err));
+      });
+  };
+
+  useEffect(() => {
+    if (user) {
+      handleInit();
+    } else {
+      setDbReady(false);
+      setDbError(null);
+    }
+  }, [user]);
 
   if (loading) {
     return (
@@ -29,6 +57,43 @@ function AppRoutes() {
 
   if (!user) {
     return <LoginPage />;
+  }
+
+  if (dbError) {
+    return (
+      <div className="splash-screen" style={{ padding: '20px', textAlign: 'center' }}>
+        <div className="splash-icon">⚠️</div>
+        <div className="splash-title" style={{ color: '#ff4d4f', fontSize: '20px', fontWeight: 'bold', marginBottom: '10px' }}>Gagal Memuat Database</div>
+        <p style={{ color: '#ccc', margin: '10px 0 20px 0', maxWidth: '400px', fontSize: '14px', lineHeight: '1.6' }}>
+          {dbError}
+        </p>
+        <button 
+          onClick={handleInit}
+          style={{
+            background: '#ff4d4f',
+            color: 'white',
+            border: 'none',
+            padding: '10px 20px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            transition: 'background 0.2s'
+          }}
+        >
+          Coba Lagi
+        </button>
+      </div>
+    );
+  }
+
+  if (!dbReady) {
+    return (
+      <div className="splash-screen">
+        <div className="splash-icon">🐣</div>
+        <div className="splash-title">Memuat database...</div>
+        <div className="splash-spinner" />
+      </div>
+    );
   }
 
   return (
@@ -50,22 +115,6 @@ function AppRoutes() {
 }
 
 export default function App() {
-  const [dbReady, setDbReady] = useState(false);
-
-  useEffect(() => {
-    initDefaults().then(() => setDbReady(true)).catch(console.error);
-  }, []);
-
-  if (!dbReady) {
-    return (
-      <div className="splash-screen">
-        <div className="splash-icon">🐣</div>
-        <div className="splash-title">Memuat database...</div>
-        <div className="splash-spinner" />
-      </div>
-    );
-  }
-
   return (
     <AuthProvider>
       <BrowserRouter>

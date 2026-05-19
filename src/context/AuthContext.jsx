@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { getSetting, auth, googleProvider } from '../db';
-import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
+import { auth, googleProvider } from '../db';
+import { onAuthStateChanged, signInWithRedirect, getRedirectResult, signOut as firebaseSignOut } from 'firebase/auth';
 
 const AuthContext = createContext(null);
 
@@ -9,25 +9,26 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // Validate whitelist
-        const whitelist = await getSetting('whitelistEmails');
-        const demoMode = await getSetting('demoMode');
-        
-        if (demoMode || !whitelist || whitelist.length === 0 || whitelist.includes(firebaseUser.email)) {
-          setUser({
-            email: firebaseUser.email,
-            name: firebaseUser.displayName,
-            picture: firebaseUser.photoURL,
-            uid: firebaseUser.uid
-          });
-        } else {
-          // Deny access
-          await firebaseSignOut(auth);
-          setUser(null);
-          alert('Akses Ditolak. Email Anda tidak terdaftar sebagai pengelola.');
+    // Handle redirect result after Google login redirect
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          console.log("Redirect login berhasil:", result.user.email);
         }
+      })
+      .catch((error) => {
+        console.error("Redirect result error:", error);
+      });
+
+    // Listen for auth state changes
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setUser({
+          email: firebaseUser.email,
+          name: firebaseUser.displayName,
+          picture: firebaseUser.photoURL,
+          uid: firebaseUser.uid
+        });
       } else {
         setUser(null);
       }
@@ -39,18 +40,23 @@ export function AuthProvider({ children }) {
 
   const loginWithGoogle = async () => {
     try {
-      setLoading(true);
-      await signInWithPopup(auth, googleProvider);
-      return { success: true };
+      // Use redirect instead of popup to avoid COOP/CORS issues on Vercel
+      await signInWithRedirect(auth, googleProvider);
+      // Page will redirect, no return value needed
     } catch (error) {
-      console.error(error);
-      setLoading(false);
+      console.error("Login error:", error);
       return { success: false, message: error.message };
     }
   };
 
   const logout = async () => {
-    await firebaseSignOut(auth);
+    try {
+      await firebaseSignOut(auth);
+      // Force page reload to clear all state cleanly
+      window.location.href = '/';
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
   return (
