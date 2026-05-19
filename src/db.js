@@ -66,6 +66,11 @@ export async function getSetting(uid, key) {
   }
 }
 
+export async function hasRegistered(uid) {
+  const farmName = await getSetting(uid, 'farmName');
+  return farmName !== null;
+}
+
 export async function setSetting(uid, key, value) {
   await setDoc(userDoc(uid, 'settings', key), { value });
 }
