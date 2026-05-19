@@ -10,9 +10,13 @@ export default function LoginPage() {
   const [farmName, setFarmName] = useState('Peternakan Puyuhku');
 
   useEffect(() => {
-    getSetting('farmName').then(name => {
-      if (name) setFarmName(name);
-    });
+    getSetting('farmName')
+      .then(name => {
+        if (name) setFarmName(name);
+      })
+      .catch(err => {
+        console.log("Belum bisa mengambil nama peternakan (belum login atau rules dibatasi):", err.message);
+      });
   }, []);
 
   const handleGoogleLogin = async () => {
