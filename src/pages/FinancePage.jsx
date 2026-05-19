@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { db, useFirestoreQuery } from '../db';
+import { useFirestoreQuery, userCol } from '../db';
 import { collection, query, where, orderBy, getDocs, addDoc, deleteDoc, doc, limit } from 'firebase/firestore';
 import { formatRupiah, formatNumber } from '../utils/formatCurrency';
 import { formatDate, todayISO } from '../utils/dateUtils';
@@ -7,11 +7,14 @@ import { showToast } from '../components/Toast';
 import Modal from '../components/Modal';
 import { TrendingUp, TrendingDown, Plus, Trash2, Calculator, ChevronRight } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const INCOME_CATEGORIES = ['Penjualan Telur', 'Karung Bekas', 'Kotoran Puyuh', 'Lainnya'];
 const EXPENSE_CATEGORIES = ['Pakan', 'Energi (Listrik)', 'Kesehatan (Vitamin/Obat)', 'Pemeliharaan (Kandang)', 'Lainnya'];
 
 export default function FinancePage() {
+  const { user } = useAuth();
+  const uid = user?.uid;
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('semua');
   const [showAddTransaction, setShowAddTransaction] = useState(false);
@@ -53,19 +56,19 @@ export default function FinancePage() {
   const monthStart = `${filterMonth}-01`;
   const monthEnd = `${filterMonth}-31`;
 
-  const transactionsQuery = useMemo(() => query(
-    collection(db, 'transactions'),
+  const transactionsQuery = useMemo(() => uid ? query(
+    userCol(uid, 'transactions'),
     where('date', '>=', monthStart),
     where('date', '<=', monthEnd)
-  ), [monthStart, monthEnd]);
+  ) : null, [uid, monthStart, monthEnd]);
   const rawTransactions = useFirestoreQuery(transactionsQuery) || [];
   const transactions = [...rawTransactions].sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  const dailyRecordsQuery = useMemo(() => query(
-    collection(db, 'dailyRecords'),
+  const dailyRecordsQuery = useMemo(() => uid ? query(
+    userCol(uid, 'dailyRecords'),
     where('date', '>=', monthStart),
     where('date', '<=', monthEnd)
-  ), [monthStart, monthEnd]);
+  ) : null, [uid, monthStart, monthEnd]);
   const monthDailyRecords = useFirestoreQuery(dailyRecordsQuery) || [];
 
   const filtered = transactions.filter(t => {
@@ -90,23 +93,17 @@ export default function FinancePage() {
   }
 
   async function loadHPP() {
-    const qFeed = query(collection(db, 'feedPurchases'), orderBy('date', 'desc'), limit(1));
+    if (!uid) return;
+    const qFeed = query(userCol(uid, 'feedPurchases'), orderBy('date', 'desc'), limit(1));
     const snapFeed = await getDocs(qFeed);
     if (snapFeed.empty) return;
     const lastFeed = snapFeed.docs[0].data();
-
-    const qDaily = query(collection(db, 'dailyRecords'), where('date', '==', todayISO()), limit(1));
+    const qDaily = query(userCol(uid, 'dailyRecords'), where('date', '==', todayISO()), limit(1));
     const snapDaily = await getDocs(qDaily);
     if (snapDaily.empty) return;
     const todayRecord = snapDaily.docs[0].data();
-
     if (!todayRecord.eggCount) return;
-
-    let eggKg = 0;
-    if (todayRecord.eggUnit === 'kg') eggKg = todayRecord.eggCount;
-    else if (todayRecord.eggUnit === 'krat') eggKg = todayRecord.eggCount * 10;
-    else eggKg = todayRecord.eggCount / 200;
-
+    let eggKg = todayRecord.eggUnit === 'kg' ? todayRecord.eggCount : todayRecord.eggUnit === 'krat' ? todayRecord.eggCount * 10 : todayRecord.eggCount / 200;
     const feedCost = (lastFeed.pricePerKarung / 50) * (todayRecord.feedUsed || 0) * 50;
     if (eggKg > 0) setHpp({ perKg: feedCost / eggKg, feedPrice: lastFeed.pricePerKarung, feedBrand: lastFeed.brand });
   }
@@ -117,7 +114,7 @@ export default function FinancePage() {
       const qty = parseFloat(incomeQty) || 1;
       const price = parseFloat(incomePricePerUnit);
       const total = qty * price;
-      await addDoc(collection(db, 'transactions'), {
+      await addDoc(userCol(uid, 'transactions'), {
         date: todayISO(),
         type: 'income',
         category: incomeCategory,
@@ -133,7 +130,7 @@ export default function FinancePage() {
       setIncomeBuyer(''); setIncomeQty(''); setIncomePricePerUnit(''); setIncomeNotes('');
     } else {
       if (!expenseAmount) { showToast('Isi nominal pengeluaran', 'warning'); return; }
-      await addDoc(collection(db, 'transactions'), {
+      await addDoc(userCol(uid, 'transactions'), {
         date: todayISO(),
         type: 'expense',
         category: expenseCategory,
@@ -149,7 +146,7 @@ export default function FinancePage() {
 
   const handleDelete = async (id) => {
     if (window.confirm('Hapus transaksi ini?')) {
-      await deleteDoc(doc(db, 'transactions', id));
+      await deleteDoc(doc(userCol(uid, 'transactions'), id));
       showToast('Transaksi dihapus', 'info');
     }
   };
