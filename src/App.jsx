@@ -26,40 +26,14 @@ function AppRoutes() {
       const actionType = localStorage.getItem('auth_action') || 'login';
       const isRegistered = await hasRegistered(uid);
 
-      if (actionType === 'daftar') {
-        if (isRegistered) {
-          const reset = window.confirm(
-            "Akun Google Anda sudah memiliki peternakan terdaftar.\n\nApakah Anda ingin memulai peternakan baru dari awal (0) dan menghapus data sebelumnya?\n\nKlik OK untuk RESET KE 0, atau klik BATAL untuk tetap menggunakan data Anda yang sudah ada."
-          );
-          if (reset) {
-            await factoryReset(uid);
-            await initDefaults(uid);
-            showToast("Selamat datang! Peternakan Anda telah direset dan dimulai kembali dari 0! 🐣🧹", "success");
-          } else {
-            showToast("Selamat datang kembali! Kami mengalihkan Anda ke data peternakan Anda yang sudah ada. 🏡👋", "success");
-          }
-        } else {
-          await initDefaults(uid);
-          showToast("Selamat datang di Puyuh Dashboard! Peternakan baru Anda berhasil didaftarkan. Selamat mengelola! 🐣🎉", "success");
-        }
+      if (isRegistered) {
+        // Akun sudah pernah daftar -> Teruskan data eksis
+        await initDefaults(uid);
+        showToast("Selamat datang kembali! Seluruh data peternakan Anda telah berhasil dipulihkan. 🏡👋", "success");
       } else {
-        // actionType === 'login'
-        if (isRegistered) {
-          await initDefaults(uid);
-          showToast("Selamat datang kembali! Seluruh data peternakan Anda telah berhasil dipulihkan. 🏡👋", "success");
-        } else {
-          const autoReg = window.confirm(
-            "Akun Google Anda belum terdaftar di sistem.\n\nApakah Anda ingin mendaftarkan peternakan baru Anda sekarang?"
-          );
-          if (autoReg) {
-            await initDefaults(uid);
-            showToast("Selamat datang di Puyuh Dashboard! Peternakan baru Anda berhasil didaftarkan. Selamat mengelola! 🐣🎉", "success");
-          } else {
-            showToast("Proses login dibatalkan karena akun belum terdaftar.", "info");
-            logout();
-            return;
-          }
-        }
+        // Akun baru -> Buat peternakan baru (mulai dari 0)
+        await initDefaults(uid);
+        showToast("Selamat datang di Puyuh Dashboard! Peternakan baru Anda berhasil didaftarkan. Selamat mengelola! 🐣🎉", "success");
       }
 
       setDbReady(true);
