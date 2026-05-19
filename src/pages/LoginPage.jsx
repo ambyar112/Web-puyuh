@@ -22,14 +22,11 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError('');
-    // loginWithGoogle uses signInWithRedirect, so the page will redirect.
-    // If there's an error before redirect, it returns { success: false }
     const result = await loginWithGoogle();
     if (result && !result.success) {
       setError(result.message);
-      setLoading(false);
     }
-    // If redirect happens, loading stays true (page navigates away)
+    setLoading(false);
   };
 
   return (

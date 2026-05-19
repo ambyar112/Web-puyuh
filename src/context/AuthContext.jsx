@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { auth, googleProvider } from '../db';
-import { onAuthStateChanged, signInWithRedirect, getRedirectResult, signOut as firebaseSignOut } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
 
 const AuthContext = createContext(null);
 
@@ -9,18 +9,6 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Handle redirect result after Google login redirect
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result?.user) {
-          console.log("Redirect login berhasil:", result.user.email);
-        }
-      })
-      .catch((error) => {
-        console.error("Redirect result error:", error);
-      });
-
-    // Listen for auth state changes
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         setUser({
@@ -40,11 +28,12 @@ export function AuthProvider({ children }) {
 
   const loginWithGoogle = async () => {
     try {
-      // Use redirect instead of popup to avoid COOP/CORS issues on Vercel
-      await signInWithRedirect(auth, googleProvider);
-      // Page will redirect, no return value needed
+      setLoading(true);
+      await signInWithPopup(auth, googleProvider);
+      return { success: true };
     } catch (error) {
       console.error("Login error:", error);
+      setLoading(false);
       return { success: false, message: error.message };
     }
   };
@@ -52,7 +41,6 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     try {
       await firebaseSignOut(auth);
-      // Force page reload to clear all state cleanly
       window.location.href = '/';
     } catch (error) {
       console.error("Logout error:", error);
