@@ -95,6 +95,59 @@ export async function updateLivestock(uid, delta) {
   });
   return newPop;
 }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-primary {
+  background: linear-gradient(135deg, var(--cyan), #0891b2);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(34,211,238,0.25);
+}
+.btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(34,211,238,0.35); }
+.btn-primary:active:not(:disabled) { transform: translateY(0); }
+.btn-danger {
+  background: linear-gradient(135deg, var(--red), #dc2626);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(248,113,113,0.25);
+}
+.btn-accent {
+  background: linear-gradient(135deg, var(--purple), #7c3aed);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(167,139,250,0.25);
+}
+.btn-ghost {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  color: var(--text2);
+}
+.btn-ghost:hover { border-color: var(--cyan); color: var(--cyan); }
+.btn-income {
+  background: linear-gradient(135deg, #059669, #047857);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(52,211,153,0.2);
+}
+.btn-expense {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(248,113,113,0.2);
+}
+.btn-large { padding: 16px 24px; font-size: 16px; min-height: 56px; }
+.btn-medium { padding: 13px 16px; font-size: 14px; min-height: 48px; }
+.btn-sm { padding: 8px 12px; font-size: 12px; min-height: 36px; }
+.btn-icon-sm {
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  color: var(--text3);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-icon-sm:hover { color: var(--text); border-color: var(--cyan); }
+.btn-icon-sm.danger:hover { color: var(--red); border-color: var(--red); }
+.w-full { width: 100%; }
+.flex-1 { flex: 1; }
+.mt-2 { margin-top: 8px; }
+.mt-3 { margin-top: 12px; }
 
 // ===== INIT DEFAULTS (run on first login for a user) =====
 export async function initDefaults(uid) {
@@ -120,6 +173,52 @@ export async function initDefaults(uid) {
   if (!lv.dateUpdated) {
     await setDoc(userDoc(uid, 'livestock', 'main'), { totalPopulation: 1000, dateUpdated: new Date().toISOString() });
   }
+
+  /* Page title bigger on desktop */
+  .page-title { font-size:28px; }
+
+  /* Stock grid — 4 cols on desktop */
+  .stock-grid { grid-template-columns:repeat(4, 1fr); gap:12px; }
+
+  /* Quick actions — 4 cols on desktop */
+  .quick-actions { grid-template-columns:repeat(4, 1fr); gap:10px; }
+  .quick-action-btn { padding:18px 12px; font-size:13px; }
+
+  /* Finance cards row */
+  .finance-cards-row { gap:12px; }
+
+  /* Report cards — horizontal on desktop */
+  .report-type-cards { flex-direction:row; }
+  .report-type-card { flex:1; }
+
+  /* Modal — centered dialog on desktop */
+  .modal-overlay { align-items:center; justify-content:center; }
+  .modal-container {
+    border-radius:var(--radius-lg);
+    max-width:540px; max-height:88vh;
+    width:100%;
+  }
+
+  /* Toast — top-right corner on desktop */
+  .toast-container {
+    left:auto; right:24px;
+    transform:none;
+    top:24px; max-width:360px; width:auto;
+  }
+
+  /* Forms — wider spacing */
+  .form-row { gap:16px; }
+  .input-big { font-size:32px; }
+
+  /* Equipment grid */
+  .equipment-group { display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; }
+  .equipment-group-label { grid-column:1/-1; }
+
+  /* More menu grid */
+  .more-menu-list { display:grid; grid-template-columns:repeat(2, 1fr); }
+
+  /* Settings */
+  .settings-section { max-width:600px; }
 }
 
 // ===== FACTORY RESET (only resets current user's data) =====
@@ -138,3 +237,4 @@ export async function factoryReset(uid) {
   await setDoc(userDoc(uid, 'stocks', 'telur'), { type: 'telur', quantity: 0, unit: 'kg', lastUpdated: new Date().toISOString() });
   await setDoc(userDoc(uid, 'livestock', 'main'), { totalPopulation: 0, dateUpdated: new Date().toISOString() });
 }
+
